@@ -1,0 +1,242 @@
+<!-- Draft HTML assembled from page.md. Update explicitly; Markdown and HTML are maintained separately. -->
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Correction Training for Diffusion Models. High-quality ImageNet and text-to-image generation without guidance, and more diverse, natural-looking samples with CFG."><meta property="og:type" content="website"><meta property="og:title" content="Correction Training for Diffusion Models"><meta property="og:description" content="High-quality diffusion generation without guidance, and more diverse, natural-looking samples with CFG."><meta property="og:url" content="https://correction-training.github.io/"><meta property="og:image" content="https://correction-training.github.io/assets/social-hourglass-v1.jpg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Hourglass sample"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="https://correction-training.github.io/assets/social-hourglass-v1.jpg"><meta name="twitter:image:alt" content="Hourglass sample"><title>Correction Training for Diffusion Models</title><link rel="icon" type="image/png" sizes="64x64" href="assets/favicon-hourglass.png"><link rel="icon" href="assets/favicon-hourglass.ico" sizes="any"><link rel="stylesheet" href="project.css"><link rel="stylesheet" href="assets/gallery.css?v=2"><script src="project.js" defer></script><script src="assets/carousel.js?v=2" defer></script></head><body>
+<a class="skip" href="#main">Skip to results</a>
+<nav class="top-nav" aria-label="Page navigation"><div class="nav-inner"><a class="nav-name" href="#top">Correction Training</a><div class="nav-links"><a href="#method">Method</a><a href="#control-refinement-with-k">ImageNet</a><a href="#text-to-image-results">Text-to-image</a></div></div></nav>
+<header class="masthead" id="top"><h1>Correction Training for Diffusion Models</h1>
+<div class="authors"><a href="/donghoon/">Donghoon Ahn<sup>1</sup></a><a href="https://raywang4.github.io/">Runqian Wang<sup>1</sup></a><a href="https://people.eecs.berkeley.edu/~efros/">Alexei A. Efros<sup>1</sup></a><a href="https://taesung.me/">Taesung Park<sup>2</sup></a><a href="https://yashbelhe.github.io/">Yash Belhe<sup>2</sup></a></div>
+<p class="affiliations"><sup>1</sup> UC Berkeley <span></span><sup>2</sup> Reve</p>
+<div class="resource-links"><a class="resource primary" href="paper.pdf?v=1f8c0a6"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg><span>Paper PDF</span></a><a class="resource primary" href="https://github.com/sunovivid/correction-training"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6M14 3l-4 18"/></svg><span>Code</span></a><a class="resource primary" href="https://www.alphaxiv.org/abs/2610.correction-training-diffusion-models" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><text x="12" y="19" text-anchor="middle" font-family="Georgia,serif" font-size="24" fill="currentColor" stroke="none">α</text></svg><span>alphaXiv</span></a><span class="resource resource-coming-soon" role="link" aria-disabled="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 4 14 16M19 4 5 20"/></svg><span>arXiv <small>Coming soon</small></span></span></div></header><main id="main">
+<section class="hero">
+<p class="intro"><strong>TL;DR:</strong> We train a corrector that takes the diffusion model's prediction and refines it toward the same clean target. At inference, we apply correction multiple times at each denoising step. This simple framework significantly improves the sample quality of diffusion models, yielding results that are better than or competitive with classifier-free guidance.</p>
+<figure class="paper-figure teaser" id="teaser">
+<a class="figure-link" href="assets/teaser-palace-first.svg" data-lightbox><picture><source media="(max-width:650px)" srcset="assets/teaser-palace-first-768.jpg 768w, assets/teaser-palace-first-1280.jpg 1280w"><img src="assets/teaser-palace-first.svg" width="1103" height="430" decoding="async" alt="Class-conditional ImageNet samples without CFG and unconditional ImageNet samples generated with correction."></picture></a>
+</figure>
+<section class="sample-showcase sample-carousel" id="sample-gallery" aria-label="Uncurated samples" data-sample-carousel>
+<div class="sample-heading"><h2>Uncurated samples</h2><div class="sample-heading-actions"><button class="carousel-toggle" type="button" aria-pressed="false" data-carousel-toggle>Pause</button><a class="correction-browse" href="gallery/?view=correction" data-carousel-browse>Browse all samples ↗</a></div></div>
+<div class="sample-tabs" role="tablist" aria-label="Uncurated sample collections">
+<button type="button" role="tab" aria-selected="true" aria-controls="uncurated-preview" data-carousel-category="imagenet-conditional">ImageNet conditional</button>
+<button type="button" role="tab" aria-selected="false" aria-controls="uncurated-preview" tabindex="-1" data-carousel-category="imagenet-unconditional">ImageNet unconditional</button>
+<button type="button" role="tab" aria-selected="false" aria-controls="uncurated-preview" tabindex="-1" data-carousel-category="text-conditional">Text-to-image conditional</button>
+<button type="button" role="tab" aria-selected="false" aria-controls="uncurated-preview" tabindex="-1" data-carousel-category="text-unconditional">Text-to-image unconditional</button>
+</div>
+<div class="carousel-window" id="uncurated-preview" role="tabpanel" aria-label="Uncurated generated samples" data-carousel-window><div class="carousel-track" data-carousel-track></div></div>
+<div class="carousel-footer"><p class="sample-settings" data-carousel-settings></p><p class="carousel-hint">Click any sample to open the viewer and compare with baseline.</p></div>
+<p class="sample-status" data-carousel-status role="status">Loading samples…</p>
+</section>
+</section>
+<section class="content-section" data-section="Method">
+<h3 id="diffusion-models-often-generate-poor-quality-images-without-guidance">Diffusion models often generate poor-quality images without guidance</h3>
+<figure class="paper-figure flux-small"><a class="figure-link" href="assets/flux-klein-no-cfg/unguided_examples.png" data-lightbox><img loading="lazy" decoding="async" src="assets/flux-klein-no-cfg/unguided_examples.png" alt="FLUX.2 Klein 9B Base samples without classifier-free guidance: two empty-prompt generations, leather shoes, a fruit basket, and a car." /></a></figure>
+<p>Without guidance, diffusion models produce poor-quality samples even in recent large-scale models such as FLUX.2 Klein 9B. This has been a long-standing issue in diffusion-based image generation. Diffusion models generate good images only with classifier-free guidance.<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a></p>
+<h3 id="structural-errors-during-denoising">Early structural errors compound over later denoising steps</h3>
+<p>During training, the denoiser learns from noisy real images. During sampling, it receives intermediate states produced by its own imperfect predictions. This training–inference gap can let errors accumulate. In the example below, an unnatural mouth structure appears early; later denoising mainly adds detail without repairing it.</p>
+<link rel="stylesheet" href="assets/motion/stepper.css">
+<figure class="mstep" data-src="assets/motion/gap-steps.mp4" data-poster="assets/motion/gap-steps-poster.jpg" aria-label="The training–inference gap, step by step.">
+<div class="mstep-words">
+<div class="mstep-beat" data-from="0" data-to="5.5"><p class="mstep-title"><span class="mstep-n">1</span>Train the denoiser</p><p class="mstep-line">Training inputs are real images mixed with noise. Given a noisy image, the denoiser predicts the clean image, and an <i>L</i><sub>2</sub> loss compares the prediction with the target.</p></div>
+<div class="mstep-beat" data-from="5.5" data-to="17.5"><p class="mstep-title"><span class="mstep-n">2</span>Sample from noise</p><p class="mstep-line">During sampling there is no real image. We start from noise, and each denoising step mixes the prediction into the next, less noisy input.</p></div>
+<div class="mstep-beat" data-from="17.5" data-to="27.5"><p class="mstep-title"><span class="mstep-n">3</span>The training&ndash;inference gap</p><p class="mstep-line">With a perfect denoiser, sampling inputs would follow exactly the same distribution as training inputs. A learned denoiser makes small errors, and each error is fed into the next input, so sampling inputs can drift away from those seen during training.</p></div>
+<div class="mstep-beat" data-from="27.5" data-to="42"><p class="mstep-title"><span class="mstep-n">4</span>Early errors are carried forward</p><p class="mstep-line">Here, a broken mouth appears early. Each prediction feeds the next input, so the inputs drift as in the schematic above, and later steps add teeth, eyes and texture while keeping the broken structure.</p></div>
+</div>
+</figure>
+<p><em>Sampling: the Fig. 3(a) sample from the paper (SiT-REPA-XL/2, ImageNet 256&times;256, no guidance, 250 steps; selected steps shown). Training: an ImageNet training image of the same class, noised at t = 0.6. Noisy inputs are shown as decoded latents. Step 3 is a schematic.</em></p>
+<h2 id="method">Method</h2>
+<p>How do we do this? The method is very simple.</p>
+<link rel="stylesheet" href="assets/motion/stepper.css">
+<figure class="mstep" data-src="assets/motion/method-steps.mp4" data-poster="assets/motion/method-steps-poster.jpg" aria-label="Training and sampling with a denoiser and corrector, step by step.">
+<div class="mstep-words" data-aria-live="polite">
+<div class="mstep-beat" data-from="0" data-to="3.9">
+<p class="mstep-title">
+<span class="mstep-n">1</span>Train the denoiser
+</p>
+<p class="mstep-line">
+Given a noisy image, the denoiser predicts the clean image. An <i>L</i><sub>2</sub> loss compares the prediction with the target.
+</p>
+</div>
+<div class="mstep-beat" data-from="3.9" data-to="6.5">
+<p class="mstep-title">
+<span class="mstep-n">2</span>Train the corrector
+</p>
+<p class="mstep-line">
+The corrector refines the denoiser’s prediction toward the same clean target. Stop-gradient (sg) keeps the correction loss from training the denoiser.
+</p>
+</div>
+<div class="mstep-beat" data-from="6.5" data-to="10">
+<p class="mstep-title">
+<span class="mstep-n">3</span>Sample from noise
+</p>
+<p class="mstep-line">
+We follow one sample through its 250 denoising steps. Steps 1–32 are not shown.
+</p>
+</div>
+<div class="mstep-beat" data-from="10" data-to="14.7">
+<p class="mstep-title">
+<span class="mstep-n">4</span>Denoise, then correct <i>K</i> times
+</p>
+<p class="mstep-line">
+The denoiser makes a prediction. At the same noise level, the corrector then refines that prediction <i>K</i> = 8 times.
+</p>
+</div>
+<div class="mstep-beat" data-from="14.7" data-to="20.133">
+<p class="mstep-title">
+<span class="mstep-n">5</span>Take the denoising step and repeat
+</p>
+<p class="mstep-line">
+The corrected prediction gives the next, less noisy input, and the same loop runs again (shown here at step 40).
+</p>
+</div>
+<div class="mstep-beat" data-from="20.133" data-to="25.567">
+<p class="mstep-title">
+<span class="mstep-n">6</span>Later steps
+</p>
+<p class="mstep-line">
+The same loop runs at every step. Later, at step 79, the prediction is already sharp and the corrections refine it further.
+</p>
+</div>
+<div class="mstep-beat" data-from="25.567" data-to="28.867">
+<p class="mstep-title">
+<span class="mstep-n">7</span>Final sample
+</p>
+<p class="mstep-line">
+The remaining steps run the same way and end in the final sample.
+</p>
+</div>
+</div>
+</figure>
+<script src="assets/motion/stepper.js" defer></script>
+<p><strong>Overall framework:</strong> We introduce a corrector trained to refine the base denoiser's prediction toward the same clean target used in the denoising loss (top row). During sampling, we iteratively correct the denoiser's prediction at each denoising step (bottom row).</p>
+</section>
+<section class="content-section" data-section="ImageNet results">
+<h3 id="control-refinement-with-k">Improve sample quality with iterative correction</h3>
+<p>Although the framework is simple, it's highly effective. Applying more corrections at each denoising step during inference produces significantly higher-quality images, with cleaner structures and fewer artifacts.</p>
+<p>The corrected sampling trajectory starts from the same initial noise. Correction can change the coarse structure of a prediction before the sampler moves to the next noise level. Here, repeated refinement produces a coherent mouth and face.</p>
+<figure class="paper-figure"><a class="figure-link" href="assets/sampling-trajectories/figure3-comparison.svg" data-lightbox><img loading="lazy" decoding="async" src="assets/sampling-trajectories/figure3-comparison.svg" alt="Figure 3: baseline and corrected sampling trajectories from the same initial noise. In the corrected trajectory, the prediction is refined repeatedly at each noise level." /></a></figure>
+<p><em>Top: baseline trajectory, K=0. Bottom: one corrected trajectory, K=8. Each triplet shows the prediction before correction (k=0), after one correction (k=1), and after eight corrections (k=8) at a fixed noise level.</em></p>
+<figure class="paper-figure"><a class="figure-link" href="assets/imagenet-k-sweep.png" data-lightbox><img loading="lazy" decoding="async" src="assets/imagenet-k-sweep.png" alt="Final SiT-REPA generations of a macaw and hourglass at K = 0, 1, 2, 4, and 8; DiT FID and precision–recall curves across correction counts." style="width:100.0%" /></a></figure>
+<p><em>Left: SiT-REPA final samples at different K. Right: DiT FID and precision–recall, evaluated on 50K images per setting.</em></p>
+<h3 id="imagenet-results">Correction significantly improves sample quality</h3>
+<p>In this work, we propose a method that enables diffusion models to generate high-quality, realistic samples without relying on guidance. We tested our method on four widely used baselines: DiT, SiT, SiT-REPA, and JiT. Our method significantly improves FID over the unguided baseline across all four models, using the same or a smaller inference budget than CFG.</p>
+<!-- Source: correction-paper/tables/main_quan.tex and generated/results.tex. -->
+<link rel="stylesheet" href="assets/motion/barstory.css">
+<figure class="barstory" data-ylabel="FID ↓">
+<div class="barstory-series" data-name="Baseline (no CFG)" data-style="base" data-phase="Baseline, no guidance">
+
+</div>
+<div class="barstory-series" data-name="Correction (ours)" data-style="corr" data-from="0" data-delta="percent" data-phase="+ Correction, still no guidance">
+
+</div>
+<div class="barstory-series" data-name="CFG reference" data-style="cfg" data-phase="CFG reference, for comparison">
+
+</div>
+<div class="barstory-group" data-name="DiT-XL/2" data-values="9.58,2.07,2.51">
+
+</div>
+<div class="barstory-group" data-name="SiT-XL/2" data-values="8.55,1.92,2.11">
+
+</div>
+<div class="barstory-group" data-name="SiT-REPA-XL/2" data-values="5.53,1.31,1.35">
+
+</div>
+<div class="barstory-group" data-name="JiT-L/16" data-values="14.86,2.96,2.35">
+
+</div>
+<img class="barstory-fallback" src="assets/imagenet-fid-bars.svg" alt="FID of the unguided baseline, correction without CFG, and the CFG reference for DiT-XL/2, SiT-XL/2, SiT-REPA-XL/2, and JiT-L/16.">
+</figure>
+<script src="assets/motion/barstory.js" defer></script>
+<p><em>Class-conditional ImageNet-256, FID on 50K samples, approximately 250 network evaluations per image (including denoiser and corrector calls for correction, and unconditional calls for CFG). We keep the number of network evaluations for correction no larger than that for CFG. See the paper for each model's settings.</em></p>
+<h3 id="more-diversity-less-oversaturation-than-strong-cfg">Correction has better diversity and less oversaturation</h3>
+<p>If it's comparable to CFG, why don't we just use CFG? CFG has two well-known weaknesses: mode collapse and oversaturation.</p>
+<ol class="tight" type="1">
+<li><strong>Mode collapse:</strong> CFG often substantially reduces the diversity of generated samples. This usually appears as boring or repetitive layouts, poses, and styles for a given text prompt.</li>
+<li><strong>Oversaturation:</strong> CFG often makes sample colors highly saturated, contributing to the &quot;AI look&quot; of many text-to-image diffusion models.</li>
+</ol>
+<p>Our correction avoids both issues in these examples. Below, we compare increasing the CFG scale with increasing the number of corrections:</p>
+<figure class="paper-figure"><a class="figure-link" href="assets/imagenet-diversity-husky-k6w7.jpg" data-lightbox><picture><source media="(max-width: 650px)" srcset="assets/imagenet-diversity-husky-k6w7-768.jpg 768w, assets/imagenet-diversity-husky-k6w7-1280.jpg 1280w" sizes="calc(100vw - 32px)"><img loading="lazy" decoding="async" src="assets/imagenet-diversity-husky-k6w7.jpg" width="2400" height="1282" alt="SiT-REPA husky samples from the same initial noise: increasing CFG scale w = 1, 3, 5, 7 (top) and increasing correction K = 0, 2, 4, 6 without CFG (bottom); w = 7 is outlined in red and K = 6 in blue." /></picture></a></figure>
+<p><em>SiT-REPA-XL/2, same class and initial noise, approximately matched NFE. Top: increasing CFG scale w. Bottom: increasing correction K without CFG.</em></p>
+<p>Increasing CFG can push samples toward similar close-up portraits and oversaturated colors. Correction preserves more varied poses, framings, and backgrounds while producing sharp, coherent images.</p>
+</section>
+<section class="content-section" data-section="Text-to-image results">
+<h2 id="text-to-image-results">Text-to-image results</h2>
+<p>Does our method work beyond ImageNet generation? Yes. We test it on <a href="https://github.com/End2End-Diffusion/diffusion-bench">NanoGen</a>, a unified diffusion transformer implementation for ImageNet and text-to-image generation. The base model is pretrained on BLIP-3o's Short-Caption, Long-Caption, and JourneyDB subsets, whose original releases contain approximately 36M image–text pairs in total. Below, we show samples without guidance (top row) and with correction (bottom row). Correction significantly improves the samples, producing cleaner object structures.</p>
+<figure class="paper-figure"><a class="figure-link" href="assets/text-to-image.png" data-lightbox><img loading="lazy" decoding="async" src="assets/text-to-image.png" alt="Correction improves object geometry and organizes cluttered scenes." style="width:100.0%" /></a></figure>
+<h3 id="already-using-cfg-add-correction">Correction combined with CFG improves diversity and realism</h3>
+<p>We can combine CFG with correction to benefit from both. Adding correction can reduce the AI look, oversaturated or overcooked colors, and loss of diversity caused by CFG.</p>
+<p>These text-to-image samples with CFG have a pronounced AI look and limited diversity: all the benches face forward.</p>
+<figure class="paper-figure"><a class="figure-link" href="assets/cfg-plus-correction.png" data-lightbox><img loading="lazy" decoding="async" src="assets/cfg-plus-correction.png" width="1659" height="867" alt="The paper's 2×2 comparison for &quot;a photo of a bench&quot;: no CFG on the left and CFG on the right; no correction on top and correction on the bottom. Each group shows the same eight seeds." /></a></figure>
+<p><em>Prompt: “a photo of a bench.” All four groups use the same eight seeds and 50 denoising steps. Columns: no CFG (w=1), CFG (w=6). Rows: no correction (K=0), correction (K=6).</em></p>
+<p>Applying correction to the CFG prediction during denoising makes the samples more diverse, with more varied viewpoints, and more realistic.</p>
+<p>Correction alone also generates high-quality samples with greater diversity and much less oversaturation; many now look like natural images. We can control diversity and prompt adherence by adjusting the CFG scale while continuing to apply correction during sampling. The corrected samples look better than the baseline samples both with and without CFG.</p>
+<p>We also conduct a human study to assess whether people perceive improvements in sample quality and diversity with correction. This is practically important for researchers and developers building large-scale text-to-image diffusion models. Across 80 GenEval single-object prompts, we collected <strong>800 responses per criterion (1,600 in total)</strong>, with 10 judgments per prompt for each criterion, through <a href="https://www.rapidata.ai/">Rapidata</a>. The baseline uses CFG only, at DiffusionBench's default CFG scale.</p>
+<div class="table-scroll" tabindex="0" aria-label="Results table">
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Criterion</th>
+<th style="text-align: right;">CFG + correction</th>
+<th style="text-align: right;">CFG only</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Quality</td>
+<td style="text-align: right;"><strong>60.75%</strong></td>
+<td style="text-align: right;">39.25%</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Diversity</td>
+<td style="text-align: right;"><strong>60.25%</strong></td>
+<td style="text-align: right;">39.75%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section class="research-notes">
+<h2 id="why-does-correction-help">Why does correction help?</h2>
+<p>Correction is simple, and it works across models. But why does it work so well? We look at two questions here; more analyses are in Section 4 (Discussion) of the paper.</p>
+<h3 id="not-just-a-bigger-model">The gain comes from applying correction iteratively</h3>
+<p>A natural suspicion is that correction simply adds parameters. To test this, we train two models from scratch with the same total number of transformer layers (LightningDiT, ImageNet 256&times;256, 80K updates): a 28-layer denoiser, and a 14-layer denoiser paired with a 14-layer corrector. With one correction per denoising step, the pair performs about the same as the deeper denoiser (FID 8.74 vs. 8.93).</p>
+<p>The gain comes from <em>repeating</em> the correction. Applying the same corrector three times per step, with half as many denoising steps so that the compute budget is unchanged, lowers FID to 5.66. Correction is not merely a way to add parameters or inference compute.</p>
+<figure class="mstep" id="why-matched" data-src="assets/motion/why-matched.mp4" data-poster="assets/motion/why-matched-poster.jpg" aria-label="A deeper denoiser versus a denoiser plus corrector at the same compute, step by step.">
+<div class="mstep-words">
+<div class="mstep-beat" data-from="0" data-to="6"><p class="mstep-title"><span class="mstep-n">1</span>A deeper denoiser</p><p class="mstep-line">The baseline is one 28-layer denoiser, run for 240 denoising steps: 6,720 layer evaluations in total. FID 8.93.</p></div>
+<div class="mstep-beat" data-from="6" data-to="12.5"><p class="mstep-title"><span class="mstep-n">2</span>Split it in two, correct once</p><p class="mstep-line">A 14-layer denoiser plus a 14-layer corrector has the same 28 layers per step. With one correction per step, it performs about the same: FID 8.74.</p></div>
+<div class="mstep-beat" data-from="12.5" data-to="20"><p class="mstep-title"><span class="mstep-n">3</span>Correct three times, take half the steps</p><p class="mstep-line">Applying the corrector three times makes each step twice as deep, so we take half as many steps (120). The total compute is unchanged: 6,720 layer evaluations.</p></div>
+<div class="mstep-beat" data-from="20" data-to="26"><p class="mstep-title"><span class="mstep-n">4</span>Same compute, much better FID</p><p class="mstep-line">With the same corrector applied three times, FID drops to 5.66. The gain comes from repeating the correction, not from more parameters or compute.</p></div>
+</div>
+</figure>
+<p><em>LightningDiT on ImageNet 256&times;256, trained from scratch for 80K updates (675M vs. 681M parameters); FID on 8K samples, no guidance. Block width shows the number of transformer layers.</em></p>
+<h3 id="closing-the-gap">It narrows the training&ndash;inference gap</h3>
+<p>Surprisingly, correction does not lower the denoising error, the squared error used for training. After three or more corrections, the error is <em>higher</em> than the base denoiser&rsquo;s. The catch is <em>where</em> this error is measured: on noisy training inputs, made from real images. During sampling, the denoiser instead sees states built from its own earlier predictions, as shown above, and what matters for generation is how well it handles those states. We hypothesize that correction helps by keeping them closer to what the denoiser saw during training.</p>
+<p>To test this, we train a classifier to tell the two apart: is this noisy state from training, or from a sampling run? If it cannot do better than a coin flip, the two distributions are indistinguishable. For a standard SiT model, the classifier separates them easily, especially at low noise levels where errors have accumulated. One correction makes the task harder, and four corrections harder still. Correction narrows the training&ndash;inference gap, even though the error on training inputs goes up.</p>
+<figure class="mstep" id="why-gap" data-src="assets/motion/why-gap.mp4" data-poster="assets/motion/why-gap-poster.jpg" aria-label="Classifier two-sample test of the training–inference gap, step by step.">
+<div class="mstep-words">
+<div class="mstep-beat" data-from="0" data-to="5.5"><p class="mstep-title"><span class="mstep-n">1</span>Two kinds of noisy states</p><p class="mstep-line">Training states are real images plus noise. Sampling states are built from the model&rsquo;s own earlier predictions. To us, they look alike.</p></div>
+<div class="mstep-beat" data-from="5.5" data-to="11.5"><p class="mstep-title"><span class="mstep-n">2</span>Can a classifier tell them apart?</p><p class="mstep-line">We train a classifier to guess where a noisy state came from. If it can only guess (AUROC 0.5), there is no gap. The easier it tells them apart, the larger the gap.</p></div>
+<div class="mstep-beat" data-from="11.5" data-to="19.5"><p class="mstep-title"><span class="mstep-n">3</span>Without correction: easy to tell apart</p><p class="mstep-line">For a standard SiT model, the classifier separates the two easily, especially near the data, where errors have accumulated over the sampling run.</p></div>
+<div class="mstep-beat" data-from="19.5" data-to="25.5"><p class="mstep-title"><span class="mstep-n">4</span>One correction</p><p class="mstep-line">With one correction per step, the sampling states become harder to tell apart from training states.</p></div>
+<div class="mstep-beat" data-from="25.5" data-to="34"><p class="mstep-title"><span class="mstep-n">5</span>Four corrections: a smaller gap</p><p class="mstep-line">With four corrections, they are harder still to tell apart. Correction narrows the training&ndash;inference gap.</p></div>
+</div>
+</figure>
+<p><em>Held-out AUROC of a classifier trained on 100K intermediate states of SiT, per noise level (data from the paper&rsquo;s Fig. on classifier two-sample tests; binary cross-entropy shows the same trend in the paper). Near pure noise all settings are close to chance. Example noisy states in steps 1&ndash;2 are decoded latents for illustration only.</em></p>
+</section>
+<section class="content-section compact" data-section="Citation">
+<h2 id="citation">Citation</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bibtex"><code class="sourceCode bibtex"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="va">@misc</span>{<span class="ot">ahn2026correction</span>,</a>
+<a class="sourceLine" id="cb1-2" data-line-number="2">  <span class="dt">title</span>  = {Correction Training for Diffusion Models},</a>
+<a class="sourceLine" id="cb1-3" data-line-number="3">  <span class="dt">author</span> = {Ahn, Donghoon and Wang, Runqian and Efros, Alexei A. and Park, Taesung and Belhe, Yash},</a>
+<a class="sourceLine" id="cb1-4" data-line-number="4">  <span class="dt">year</span>   = {2026}</a>
+<a class="sourceLine" id="cb1-5" data-line-number="5">}</a></code></pre></div>
+</section>
+<section class="content-section compact" data-section="Acknowledgments">
+<h2 id="acknowledgments">Acknowledgments</h2>
+<p>We would like to thank Konpat Preechakul for valuable insights and feedback, as well as Michael Gharbi for insightful discussions, and Nicolas Dufour for providing detailed feedback on the manuscript. We are grateful to A. Sophia Koepke, Anne Harrington, Amil Dravid, Jorge Diaz Chao, Isabella Yu, Yutong Bai, Yong-Hyun Park, Sangyoon Lee, Sihyun Yu, Susung Hong, Joonghyuk Shin, Gyuseong Lee, and Sanghyun Lee for helpful discussions. This work was supported, in part, by NSF IIS-2403305 and ONR MURI grants.</p>
+</section>
+<section class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>Other approaches include alternative guidance methods, reinforcement learning, and supervised fine-tuning on a small, high-quality dataset. None has fully satisfied us: RL-based approaches typically require external models, while supervised fine-tuning can sacrifice substantial diversity.<a href="#fnref1" class="footnote-back">↩</a></p></li>
+</ol>
+</section>
+</main><footer><span>Correction Training for Diffusion Models</span><a href="#top">Back to top</a></footer><dialog id="figure-viewer" aria-label="Expanded figure"><button type="button" class="close-viewer" aria-label="Close expanded figure">Close</button><img alt=""></dialog></body></html>

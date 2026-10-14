@@ -1,0 +1,41 @@
+name: Deploy project website
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7.0.1
+        with:
+          repository: sunovivid/correction-training
+          ref: 1ebd8882f5ba9fcadf976b66b264308861c025c2
+          path: source-project
+          sparse-checkout: docs
+      - uses: actions/checkout@v7.0.1
+        with:
+          repository: sunovivid/sunovivid.github.io
+          ref: 71763ea164a01b08f7f47ecb16a401a810e9a356
+          path: source-personal
+      - name: Assemble and verify published files
+        run: python3 build_site.py --project-dir source-project/docs --personal-dir source-personal
+      - uses: actions/upload-pages-artifact@v5.0.0
+        with:
+          path: dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v5.0.1
+        id: deployment
