@@ -24,6 +24,16 @@ jobs:
           path: source-personal
       - name: Assemble and verify published files
         run: python3 build_site.py --project-dir source-project/docs --personal-dir source-personal
+      - name: Fetch full sample gallery
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GALLERY_ASSET_SHA256: 821a58b6532042d2f2480c8de9fd218380469d8074585cedd4d210cc97f3f792
+        run: |
+          gallery_asset_dir="${RUNNER_TEMP}/gallery-assets"
+          mkdir -p "$gallery_asset_dir"
+          gh release download gallery-assets-v1 --repo sunovivid/correction-training --pattern gallery-assets.zip --dir "$gallery_asset_dir"
+          printf '%s  %s\n' "$GALLERY_ASSET_SHA256" "$gallery_asset_dir/gallery-assets.zip" | sha256sum -c -
+          python -m zipfile -e "$gallery_asset_dir/gallery-assets.zip" dist/assets/gallery
       - uses: actions/upload-pages-artifact@v5.0.0
         with:
           path: dist

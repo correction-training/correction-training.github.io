@@ -1,0 +1,5 @@
+/* Preview: replace the TL;DR with the paper's abstract. */
+.hero .project-abstract{max-width:960px;margin:0 auto 36px;text-align:left}
+.hero .project-abstract h2{color:var(--ink);font-size:24px;font-weight:650;line-height:1.35;text-align:center;margin:0 0 18px}
+.hero .project-abstract p{font-size:17px;line-height:1.75;margin:0;text-align:left}
+@media(max-width:650px){.hero .project-abstract{margin-bottom:26px}.hero .project-abstract h2{font-size:23px;margin-bottom:16px}.hero .project-abstract p{font-size:16px;line-height:1.7}}

@@ -2,7 +2,7 @@
   "project.js": "6608ec5993a3a50c72006953811b3408b0bea5f068eefa38a75cb7bfeb6ca45e",
   "paper.pdf": "832075a4266f5aa2f5a77a5d831938f03763e7480e0f60142b0c5ec548f22fe1",
   "project.css": "a62fe4746a3be71a5ffa3fc71116df3136f71182e746d11251d63977eb0b7139",
-  "index.html": "aefa194df2956f5c2bb22ecdb73b9e2462eb3da2f5bba8d331d7ea6b0724fbf4",
+  "index.html": "02b6be2f069b8d726765f0022df0f29294925ea5c5b1236cd951850caa6f0866",
   ".nojekyll": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "assets/cfg-plus-correction.png": "fb89b2555823a492b9cf266a6d74102c74868121c16e4d7f21f8b0e0efd3676f",
   "assets/imagenet-diversity-repa-768.jpg": "4cbafb53d52f5918e4e8dd9aeb95cdf8649724ed53702737b30e9cc479809982",
@@ -1676,5 +1676,6 @@
   "donghoon/blog/category/sample-posts/index.html": "0975112d27735998bf7057f1f9942e61aac580c1fa22b3993d8e49f6cd68ce3f",
   "donghoon/blog/2020/twitter/index.html": "f79339f78541a785d4c0283d78815c4fd4e3b82943a3b2ed0b588ae6050e645f",
   "donghoon/blog/2020/github-metadata/index.html": "f0b6ebacb7b46045a9bcf698e9bba41facb765eac4ffc9e81652877a1d4c3880",
-  "donghoon/_pages/dropdown/index.html": "ae1fda54fdca723b7f2a810002133e082724496632c5c49b4a2d94241ee05068"
+  "donghoon/_pages/dropdown/index.html": "ae1fda54fdca723b7f2a810002133e082724496632c5c49b4a2d94241ee05068",
+  "abstract.css": "efb94c2f6c20272c9efd63ce67cc9975724025ab4378a8e22d8962e0d3b5eb25"
 }
